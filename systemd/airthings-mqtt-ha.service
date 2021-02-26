@@ -1,0 +1,15 @@
+[Unit]
+Description=airthings-mqtt-ha control script
+After=network-online.target
+
+[Service]
+User=pi
+Group=pi
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=python3 /home/pi/airthings-mqtt-ha/src/airthings-mqtt-ha.py
+Restart=always
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target
+
