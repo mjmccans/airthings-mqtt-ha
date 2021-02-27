@@ -1,6 +1,6 @@
 # Note that this file is from the project https://github.com/custom-components/sensor.airthings_wave
-# and is the great work of that team and not mine. The original file does not contain a license or
-# copyright notice but it is added below. 
+# and is the great work of that team and not mine. The original file does not 
+# contain a license or copyright notice but it is added below. 
 #
 # Copyright (c) 2021 Martin Tremblay
 #
@@ -21,6 +21,12 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+#
+# Change from original: The only changes made from Martin's original code is
+# disabling some exception handling so the exceptions can be handled in the
+# airthings-mqtt-ha.py code. 
+
 
 import struct
 import time
