@@ -1,5 +1,7 @@
 # Airthings to Home Assistant via MQTT Discovery
 
+[![BuyMeCoffee][buymebeerbadge]][buymebeer]
+
 This Python script will read sensor values from [Airthings](https://www.airthings.com/) environmental monitoring devices through Bluetooth Low Energy (BLE) and send those values to Home Assistant via an MQTT broker. This script includes [Home Assistant MQTT discovery](https://www.home-assistant.io/docs/mqtt/discovery/) so your sensors will automatically appear in Home Assistant if everything is set up correctly. Airthings monitoring products are interesting because they can monitor radon levels, which is a radioactive gas that can be found in homes and is thought to be a cause of lung cancer.
 
 ## Screenshot
@@ -76,3 +78,6 @@ and with many other Airthings devices (although some testing and tweaks may be n
 ## Contributions and Feedback
 
 Feedback, suggested changes and code contributions are welcome. I have not been a professional programmer for close to 20 years and my experience dates back to the Python 2.2 era, so it is possible that my code is behind the times or just simply wrong. I am open to constructive feedback and improvements, I love learning new things from the community, and I am willing to admit when I am wrong. That is the power of open source software, and all that I ask is that any feedback or comments are courteous and respectful and I will a endeavor to do same with my responses. If you do submit any code changes, you are deemed to have agreed that your changes will be licensed under the MIT License that covers the project. If you do not agree with that license, then please do not submit any code changes.
+
+[buymebeer]: https://paypal.me/markmccans
+[buymebeerbadge]: https://img.shields.io/badge/buy%20me%20a%20beer-donate-yellow.svg?style=for-the-badge
