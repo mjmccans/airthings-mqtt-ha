@@ -254,10 +254,11 @@ if __name__ == "__main__":
             for mac, data in sensors.items():
                 for name, val in data.items():
                     if name != "date_time":
-                        if name == "temperature":
-                            val = round(val,1)
-                        else:
-                            val = round(val)
+                        if isinstance(val, str) == False:
+                            if name == "temperature":
+                                val = round(val,1)
+                            else:
+                                val = round(val)
                         _LOGGER.info("{} = {}".format("airthings/"+mac+"/"+name, val))
                         msgs.append({'topic': "airthings/"+mac+"/"+name, 'payload': val})
             
