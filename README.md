@@ -22,6 +22,7 @@ The instructions below are for running this script on a RaspberryPi running Rasp
 ```
 sudo apt install python3-pip
 pip3 install --user paho-mqtt
+pip3 install --user toml
 pip3 install --user bluepy
 ```
 * Run the following command to give permissions required for bluepy to interact with the bluetooth radio without being root:
