@@ -1,6 +1,8 @@
 # Note that this file is from the project https://github.com/custom-components/sensor.airthings_wave
 # and is the great work of that team and not mine. The original file does not contain a license or
-# copyright notice but it is added below. 
+# copyright notice but it is added below.
+#
+# I have also supressed a print message to clean up the output.
 #
 # Copyright (c) 2021 Martin Tremblay
 #
@@ -203,7 +205,7 @@ class AirthingsWaveDetect:
             try:
                 self._dev = btle.Peripheral(mac.lower())
             except Exception as e:
-                print(e)
+                # print(e)
                 if tries == retries:
                     pass
                 else:
