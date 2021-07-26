@@ -24,8 +24,6 @@ import logging, time, json, sys, os, toml
 import paho.mqtt.publish as publish
 from paho.mqtt import MQTTException
 from airthings import AirthingsWaveDetect
-# DEBUG: Remove old imports
-#from pygatt.exceptions import NotConnectedError, BLEError, NotificationTimeout
 
 _LOGGER = logging.getLogger("airthings-mqtt-ha")
 
@@ -84,12 +82,9 @@ class ATSensors:
         for attempt in range(CONFIG["general"]["retry_count"]):
             try:
                 devices_info = self.airthingsdetect.get_info()
-            #except (NotificationTimeout, NotConnectedError):
-            #    _LOGGER.warning("Bluetooth error on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["general"]["retry_wait"]))
-            #    time.sleep(CONFIG["general"]["retry_wait"])
             except:
-                _LOGGER.exception("Unexpected exception while getting device information.")
-                return False
+                _LOGGER.warning("Unexpected exception while getting device information on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["general"]["retry_wait"]))
+                time.sleep(CONFIG["general"]["retry_wait"])
             else:
                 # Success!
                 break
@@ -110,12 +105,9 @@ class ATSensors:
         for attempt in range(CONFIG["general"]["retry_count"]):
             try:
                 devices_sensors = self.airthingsdetect.get_sensors()
-            #except (NotificationTimeout, NotConnectedError):
-            #    _LOGGER.warning("Bluetooth error on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["general"]["retry_wait"]))
-            #    time.sleep(CONFIG["general"]["retry_wait"])
             except:
-                _LOGGER.exception("Unexpected exception while getting sensors information.")
-                return False
+                _LOGGER.warning("Unexpected exception while getting sensors information on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["general"]["retry_wait"]))
+                time.sleep(CONFIG["general"]["retry_wait"])
             else:
                 # Success!
                 break
@@ -138,12 +130,9 @@ class ATSensors:
             try:
                 sensordata = self.airthingsdetect.get_sensor_data()
                 return sensordata
-            #except (NotificationTimeout, NotConnectedError):
-            #    _LOGGER.warning("Bluetooth error on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["general"]["retry_wait"]))
-            #    time.sleep(CONFIG["general"]["retry_wait"])
             except:
-                _LOGGER.exception("Unexpected exception while getting sensor data.")
-                return False
+                _LOGGER.warning("Unexpected exception while getting sensor data on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["general"]["retry_wait"]))
+                time.sleep(CONFIG["general"]["retry_wait"])
             else:
                 # Success!
                 break
