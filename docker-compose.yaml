@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  
+  airthings-mqtt-ha:
+    build:
+      context: ./
+    
+    container_name: airthings-mqtt-ha
+    image: mjmccans/airthings-mqtt-ha:latest
+  
+    network_mode: host # This is required for bluetooth to work in the container
+    
+    tty: true
+    stdin_open: true
+
+    restart: unless-stopped
+
+    volumes:
+      - ./src/config.toml:/code/config.toml # Location of config.toml file
