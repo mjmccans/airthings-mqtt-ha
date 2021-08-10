@@ -9,6 +9,9 @@ services:
     container_name: airthings-mqtt-ha
     image: mjmccans/airthings-mqtt-ha:latest
   
+    # NOTE: Needed for bluetooth scanning but needed once devices are configured in the config.toml file
+    privileged: true
+    
     network_mode: host # This is required for bluetooth to work in the container
     
     tty: true

@@ -11,8 +11,7 @@ RUN pip install --no-warn-script-location --user -r requirements.txt
 FROM python:3.9-slim
 
 # Install bluetooth packages
-RUN apt-get update
-RUN apt-get install -y bluez
+RUN apt-get update && apt-get install -y bluez
 
 # set the working directory in the container
 WORKDIR /code
@@ -21,8 +20,7 @@ WORKDIR /code
 COPY --from=stage1 /root/.local /root/.local
 
 # copy the python scripts
-COPY ./src/airthings.py .
-COPY ./src/airthings-mqtt-ha.py .
+COPY ./src/*.py ./
 
 # update PATH environment variable
 ENV PATH=/root/.local:$PATH
