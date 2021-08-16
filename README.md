@@ -2,6 +2,8 @@
 
 This Python script will read sensor values from [Airthings](https://www.airthings.com/) environmental monitoring devices through Bluetooth Low Energy (BLE) and send those values to Home Assistant via an MQTT broker. This script includes [Home Assistant MQTT discovery](https://www.home-assistant.io/docs/mqtt/discovery/) so your sensors will automatically appear in Home Assistant if everything is set up correctly. Airthings monitoring products are interesting because they can monitor radon levels, which is a radioactive gas that can be found in homes and is thought to be a cause of lung cancer.
 
+**Note**: _This script can be installed as a Home Assistant add-on by going to the following repository and following the instructions: [mjmccans/hassio-addon-airthings](https://github.com/mjmccans/hassio-addon-airthings)._
+
 ## Screenshot
 
 The screenshot below shows an Airthings Wave Plus device as it appears in Home Assistant, including the sensors associated with the device.
