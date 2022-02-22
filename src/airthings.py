@@ -24,20 +24,24 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import logging
 import struct
 import time
 from collections import namedtuple
-
-import logging
 from datetime import datetime
+from uuid import UUID
 
 import bluepy.btle as btle
 
-from uuid import UUID
+# Battery min and max voltage
+V_MIN = 2.4
+V_MAX = 3.2
 
 _LOGGER = logging.getLogger(__name__)
 
 # Use full UUID since we do not use UUID from bluepy.btle
+# Client Characteristic Configuration Descriptor (CCCD)
+CHAR_UUID_CCCD = btle.UUID('2902')
 CHAR_UUID_MANUFACTURER_NAME = UUID('00002a29-0000-1000-8000-00805f9b34fb')
 CHAR_UUID_SERIAL_NUMBER_STRING = UUID('00002a25-0000-1000-8000-00805f9b34fb')
 CHAR_UUID_MODEL_NUMBER_STRING = UUID('00002a24-0000-1000-8000-00805f9b34fb')
@@ -47,18 +51,25 @@ CHAR_UUID_TEMPERATURE = UUID('00002a6e-0000-1000-8000-00805f9b34fb')
 CHAR_UUID_HUMIDITY = UUID('00002a6f-0000-1000-8000-00805f9b34fb')
 CHAR_UUID_RADON_1DAYAVG = UUID('b42e01aa-ade7-11e4-89d3-123b93f75cba')
 CHAR_UUID_RADON_LONG_TERM_AVG = UUID('b42e0a4c-ade7-11e4-89d3-123b93f75cba')
-CHAR_UUID_ILLUMINANCE_ACCELEROMETER = UUID('b42e1348-ade7-11e4-89d3-123b93f75cba')
+CHAR_UUID_ILLUMINANCE_ACCELEROMETER = UUID(
+    'b42e1348-ade7-11e4-89d3-123b93f75cba')
 CHAR_UUID_WAVE_PLUS_DATA = UUID('b42e2a68-ade7-11e4-89d3-123b93f75cba')
 CHAR_UUID_WAVE_2_DATA = UUID('b42e4dcc-ade7-11e4-89d3-123b93f75cba')
 CHAR_UUID_WAVEMINI_DATA = UUID('b42e3b98-ade7-11e4-89d3-123b93f75cba')
+# "Access Control Point" Characteristic
+COMMAND_UUID = UUID('b42e2d06-ade7-11e4-89d3-123b93f75cba')
 
 Characteristic = namedtuple('Characteristic', ['uuid', 'name', 'format'])
 
-manufacturer_characteristics = Characteristic(CHAR_UUID_MANUFACTURER_NAME, 'manufacturer', "utf-8")
+manufacturer_characteristics = Characteristic(
+    CHAR_UUID_MANUFACTURER_NAME, 'manufacturer', "utf-8")
 device_info_characteristics = [manufacturer_characteristics,
-                               Characteristic(CHAR_UUID_SERIAL_NUMBER_STRING, 'serial_nr', "utf-8"),
-                               Characteristic(CHAR_UUID_MODEL_NUMBER_STRING, 'model_nr', "utf-8"),
+                               Characteristic(
+                                   CHAR_UUID_SERIAL_NUMBER_STRING, 'serial_nr', "utf-8"),
+                               Characteristic(
+                                   CHAR_UUID_MODEL_NUMBER_STRING, 'model_nr', "utf-8"),
                                Characteristic(CHAR_UUID_DEVICE_NAME, 'device_name', "utf-8")]
+
 
 class AirthingsDeviceInfo:
     def __init__(self, manufacturer='', serial_nr='', model_nr='', device_name=''):
@@ -74,9 +85,11 @@ class AirthingsDeviceInfo:
 
 sensors_characteristics_uuid = [CHAR_UUID_DATETIME, CHAR_UUID_TEMPERATURE, CHAR_UUID_HUMIDITY, CHAR_UUID_RADON_1DAYAVG,
                                 CHAR_UUID_RADON_LONG_TERM_AVG, CHAR_UUID_ILLUMINANCE_ACCELEROMETER,
-                                CHAR_UUID_WAVE_PLUS_DATA,CHAR_UUID_WAVE_2_DATA,CHAR_UUID_WAVEMINI_DATA]
+                                CHAR_UUID_WAVE_PLUS_DATA, CHAR_UUID_WAVE_2_DATA, CHAR_UUID_WAVEMINI_DATA,
+                                COMMAND_UUID]
 
-sensors_characteristics_uuid_str = [str(x) for x in sensors_characteristics_uuid]
+sensors_characteristics_uuid_str = [
+    str(x) for x in sensors_characteristics_uuid]
 
 
 class BaseDecode:
@@ -93,7 +106,7 @@ class BaseDecode:
             res = val[0] * self.scale
         else:
             res = val
-        return {self.name:res}
+        return {self.name: res}
 
 
 class WavePlussDecode(BaseDecode):
@@ -131,7 +144,7 @@ class WaveMiniDecode(BaseDecode):
         val = val[self.name]
         data = {}
         data['date_time'] = str(datetime.isoformat(datetime.now()))
-        data['temperature'] = round( val[1]/100.0 - 273.15,2)
+        data['temperature'] = round(val[1]/100.0 - 273.15, 2)
         data['humidity'] = val[3]/100.0
         data['voc'] = val[4]*1.0
         return data
@@ -140,7 +153,8 @@ class WaveMiniDecode(BaseDecode):
 class WaveDecodeDate(BaseDecode):
     def decode_data(self, raw_data):
         val = super().decode_data(raw_data)[self.name]
-        data = {self.name:str(datetime(val[0], val[1], val[2], val[3], val[4], val[5]).isoformat())}
+        data = {self.name: str(
+            datetime(val[0], val[1], val[2], val[3], val[4], val[5]).isoformat())}
         return data
 
 
@@ -153,15 +167,63 @@ class WaveDecodeIluminAccel(BaseDecode):
         return data
 
 
-sensor_decoders = {str(CHAR_UUID_WAVE_PLUS_DATA):WavePlussDecode(name="Pluss", format_type='BBBBHHHHHHHH', scale=0),
-                   str(CHAR_UUID_DATETIME):WaveDecodeDate(name="date_time", format_type='HBBBBB', scale=0),
-                   str(CHAR_UUID_HUMIDITY):BaseDecode(name="humidity", format_type='H', scale=1.0/100.0),
-                   str(CHAR_UUID_RADON_1DAYAVG):BaseDecode(name="radon_1day_avg", format_type='H', scale=1.0),
-                   str(CHAR_UUID_RADON_LONG_TERM_AVG):BaseDecode(name="radon_longterm_avg", format_type='H', scale=1.0),
-                   str(CHAR_UUID_ILLUMINANCE_ACCELEROMETER):WaveDecodeIluminAccel(name="illuminance_accelerometer", format_type='BB', scale=1.0),
-                   str(CHAR_UUID_TEMPERATURE):BaseDecode(name="temperature", format_type='h', scale=1.0/100.0),
-                   str(CHAR_UUID_WAVE_2_DATA):Wave2Decode(name="Wave2", format_type='<4B8H', scale=1.0),
-                   str(CHAR_UUID_WAVEMINI_DATA):WaveMiniDecode(name="WaveMini", format_type='<HHHHHHLL', scale=1.0),}
+class CommandDecode:
+    def __init__(self, name, format_type, cmd):
+        self.name = name
+        self.format_type = format_type
+        self.cmd = cmd
+
+    def decode_data(self, raw_data):
+        if raw_data is None:
+            return {}
+        cmd = raw_data[0:1]
+        if cmd != self.cmd:
+            _LOGGER.warning("Result for Wrong command received, expected {} got {}".format(
+                self.cmd.hex(), cmd.hex()))
+            return {}
+
+        if len(raw_data[2:]) != struct.calcsize(self.format_type):
+            _LOGGER.debug("Wrong length data received ({}) verses expected ({})".format(
+                len(cmd), struct.calcsize(self.format_type)))
+            return {}
+        val = struct.unpack(
+            self.format_type,
+            raw_data[2:])
+        res = {}
+        res['illuminance'] = val[2]
+        #res['measurement_periods'] =  val[5]
+        res['battery'] = val[17] / 1000.0
+        res['battery_level'] = max(
+            0, min(100, round((res['battery']-V_MIN)/(V_MAX-V_MIN)*100)))
+
+        return res
+
+
+class MyDelegate(btle.DefaultDelegate):
+    def __init__(self):
+        btle.DefaultDelegate.__init__(self)
+        # ... initialise here
+        self.data = None
+
+    def handleNotification(self, cHandle, data):
+        if self.data is None:
+            self.data = data
+        else:
+            self.data = self.data + data
+
+
+sensor_decoders = {str(CHAR_UUID_WAVE_PLUS_DATA): WavePlussDecode(name="Pluss", format_type='BBBBHHHHHHHH', scale=0),
+                   str(CHAR_UUID_DATETIME): WaveDecodeDate(name="date_time", format_type='HBBBBB', scale=0),
+                   str(CHAR_UUID_HUMIDITY): BaseDecode(name="humidity", format_type='H', scale=1.0/100.0),
+                   str(CHAR_UUID_RADON_1DAYAVG): BaseDecode(name="radon_1day_avg", format_type='H', scale=1.0),
+                   str(CHAR_UUID_RADON_LONG_TERM_AVG): BaseDecode(name="radon_longterm_avg", format_type='H', scale=1.0),
+                   str(CHAR_UUID_ILLUMINANCE_ACCELEROMETER): WaveDecodeIluminAccel(name="illuminance_accelerometer", format_type='BB', scale=1.0),
+                   str(CHAR_UUID_TEMPERATURE): BaseDecode(name="temperature", format_type='h', scale=1.0/100.0),
+                   str(CHAR_UUID_WAVE_2_DATA): Wave2Decode(name="Wave2", format_type='<4B8H', scale=1.0),
+                   str(CHAR_UUID_WAVEMINI_DATA): WaveMiniDecode(name="WaveMini", format_type='<HHHHHHLL', scale=1.0), }
+
+command_decoders = {str(COMMAND_UUID): CommandDecode(
+    name="Battery", format_type='<L12B6H', cmd=struct.pack('<B', 0x6d))}
 
 
 class AirthingsWaveDetect:
@@ -184,28 +246,33 @@ class AirthingsWaveDetect:
 
     def find_devices(self, scans=50, timeout=0.1):
         # Search for devices, scan for BLE devices scans times for timeout seconds
-        # Get manufacturer data and try to match match it to airthings ID.
+        # Get manufacturer data and try to match it to airthings ID.
         scanner = btle.Scanner()
         for _count in range(scans):
             advertisements = scanner.scan(timeout)
             for adv in advertisements:
-                sn = self._parse_serial_number(adv.getValue(btle.ScanEntry.MANUFACTURER))
+                sn = self._parse_serial_number(
+                    adv.getValue(btle.ScanEntry.MANUFACTURER))
                 if sn is not None:
                     if adv.addr not in self.airthing_devices:
                         self.airthing_devices.append(adv.addr)
 
-        _LOGGER.debug("Found {} airthings devices".format(len(self.airthing_devices)))
+        _LOGGER.debug("Found {} airthings devices".format(
+            len(self.airthing_devices)))
         return len(self.airthing_devices)
 
-    def connect(self, mac, retries=10):  
+    def connect(self, mac, retries=10):
         tries = 0
         self.disconnect()
         while (tries < retries):
             tries += 1
             try:
                 self._dev = btle.Peripheral(mac.lower())
+                self.delgate = MyDelegate()
+                self._dev.withDelegate(self.delgate)
+                break
             except Exception as e:
-                # print(e)
+                print(e)
                 if tries == retries:
                     pass
                 else:
@@ -225,9 +292,11 @@ class AirthingsWaveDetect:
                 device = AirthingsDeviceInfo(serial_nr=mac)
                 for characteristic in device_info_characteristics:
                     try:
-                        char = self._dev.getCharacteristics(uuid=characteristic.uuid)[0]
+                        char = self._dev.getCharacteristics(
+                            uuid=characteristic.uuid)[0]
                         data = char.read()
-                        setattr(device, characteristic.name, data.decode(characteristic.format))
+                        setattr(device, characteristic.name,
+                                data.decode(characteristic.format))
                     except btle.BTLEDisconnectError:
                         _LOGGER.exception("Disconnected")
                         self._dev = None
@@ -243,35 +312,64 @@ class AirthingsWaveDetect:
             if self._dev is not None:
                 try:
                     characteristics = self._dev.getCharacteristics()
-                    sensor_characteristics =  []
+                    sensor_characteristics = []
                     for characteristic in characteristics:
                         _LOGGER.debug(characteristic)
                         if characteristic.uuid in sensors_characteristics_uuid_str:
                             sensor_characteristics.append(characteristic)
                     self.sensors[mac] = sensor_characteristics
                 except btle.BTLEDisconnectError:
-                        _LOGGER.exception("Disconnected")
-                        self._dev = None
+                    _LOGGER.exception("Disconnected")
+                    self._dev = None
             self.disconnect()
         return self.sensors
 
     def get_sensor_data(self):
-        if time.monotonic() - self.last_scan > self.scan_interval:
+        if time.monotonic() - self.last_scan > self.scan_interval or self.last_scan == -1:
             self.last_scan = time.monotonic()
             for mac, characteristics in self.sensors.items():
                 self.connect(mac)
                 if self._dev is not None:
                     try:
                         for characteristic in characteristics:
+                            sensor_data = None
                             if str(characteristic.uuid) in sensor_decoders:
-                                char = self._dev.getCharacteristics(uuid=characteristic.uuid)[0]
+                                char = self._dev.getCharacteristics(
+                                    uuid=characteristic.uuid)[0]
                                 data = char.read()
-                                sensor_data = sensor_decoders[str(characteristic.uuid)].decode_data(data)
-                                _LOGGER.debug("{} Got sensordata {}".format(mac, sensor_data))
+                                sensor_data = sensor_decoders[str(
+                                    characteristic.uuid)].decode_data(data)
+                                _LOGGER.debug(
+                                    "{} Got sensordata {}".format(mac, sensor_data))
+
+                            if str(characteristic.uuid) in command_decoders:
+                                # Clear the delegate so it is ready for new data.
+                                self.delgate.data = None
+                                char = self._dev.getCharacteristics(
+                                    uuid=characteristic.uuid)[0]
+                                # Do these steps to get notification to work, I do not know how it works, this link should explain it
+                                # https://devzone.nordicsemi.com/guides/short-range-guides/b/bluetooth-low-energy/posts/ble-characteristics-a-beginners-tutorial
+                                desc, = char.getDescriptors(
+                                    forUUID=CHAR_UUID_CCCD)
+                                desc.write(struct.pack('<H', 1), True)
+                                char.write(
+                                    command_decoders[str(characteristic.uuid)].cmd)
+                                for i in range(3):
+                                    if self._dev.waitForNotifications(0.1):
+                                        _LOGGER.debug("Received notification, total data received len {}".format(
+                                            len(self.delgate.data)))
+
+                                sensor_data = command_decoders[str(
+                                    characteristic.uuid)].decode_data(self.delgate.data)
+                                _LOGGER.debug(
+                                    "{} Got cmddata {}".format(mac, sensor_data))
+
+                            if sensor_data is not None:
                                 if self.sensordata.get(mac) is None:
                                     self.sensordata[mac] = sensor_data
                                 else:
                                     self.sensordata[mac].update(sensor_data)
+
                     except btle.BTLEDisconnectError:
                         _LOGGER.exception("Disconnected")
                         self._dev = None

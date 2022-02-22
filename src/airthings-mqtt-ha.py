@@ -242,11 +242,12 @@ if __name__ == "__main__":
             # Collect all of the sensor data
             _LOGGER.info("Collecting sensor value messages...")
             for mac, data in sensors.items():
+                s = next((item for item in CONFIG["devices"] if item["mac"] == mac), None)
                 for name, val in data.items():
                     if name != "date_time":
                         if isinstance(val, str) == False:
-                            if name == "temperature":
-                                val = round(val,1)
+                            if 'round_digits' in s[name]:
+                               val = round(val, s[name]['round_digits'])
                             else:
                                 val = round(val)
                         _LOGGER.info("{} = {}".format("airthings/"+mac+"/"+name, val))
