@@ -211,8 +211,6 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='[%Y-%m-%d %H:%M:%S]')
     _LOGGER.setLevel(logging.INFO)
 
-    # %%% Update this. Some options should be optional, and the configuration should override (such as the MQTT settings).
-    # %%% Should also set reasonable defaults.
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Note that any values in your config file will override values provided as command arguments.')
     parser.add_argument('--mqtt-host', type=str, default='localhost', help='mqtt server host name or ip address (default is localhost)')
@@ -224,7 +222,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Fill in the config values from the command line arguments provided
-    # %%% Need to update this.
     CONFIG["mqtt_host"] = args.mqtt_host
     CONFIG["mqtt_port"] = args.mqtt_port
     CONFIG["mqtt_username"] = args.mqtt_username
@@ -240,16 +237,7 @@ if __name__ == "__main__":
         # Exit if there is an error reading config file
         _LOGGER.exception("\033[31mError reading options.json file. If you are running this as a Home Assistant addon and the watchdog option is enabled, this addon will restart and try again.\033[0m")
         sys.exit(1)
-    
-    # %%% Add check to see if required config entries exist?
-    
-    # %%% Old code here
-    # # Fill in any missing configuration variable with defaults
-    # for key in CONFIG_DEFAULTS:
-    #     if key not in CONFIG: CONFIG[key] = CONFIG_DEFAULTS[key]
-    #     for val in CONFIG_DEFAULTS[key]:
-    #         if val not in CONFIG[key]: CONFIG[key][val] = CONFIG_DEFAULTS[key][val]
-
+      
     # Set logging level (defaults to INFO)
     if CONFIG["log_level"] in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
         _LOGGER.setLevel(CONFIG["log_level"])
