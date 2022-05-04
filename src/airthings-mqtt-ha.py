@@ -66,56 +66,79 @@ class ATSensors:
 
         _LOGGER.info("Done Airthings setup.")
 
+    def generate_config(self):    
+        s = '{\n' + '  "devices" : [\n' + '    {\n'
+        for d in self.airthingsdetect.airthing_devices:
+            s += '      "mac": "'+d+'",\n' + '      "name": "INSERT DEVICE NAME"\n'
+        s += '    }\n' + '  ],\n'
+        s += '  "refresh_interval": ' + str(CONFIG["refresh_interval"]) + ',\n'
+        s += '  "retry_count": ' + str(CONFIG["retry_count"]) + ',\n'
+        s += '  "retry_wait": ' + str(CONFIG["retry_wait"]) + ',\n'
+        s += '  "log_level": "' + CONFIG["log_level"] + '",\n'
+        s += '  "mqtt_discovery": ' + str(CONFIG["mqtt_discovery"]).lower() + ',\n'
+        s += '  "mqtt_retain": ' + str(CONFIG["mqtt_retain"]).lower() + ',\n'
+        s += '  "mqtt_host": "' + CONFIG["mqtt_host"] + '",\n'
+        s += '  "mqtt_username": "' + CONFIG["mqtt_username"] + '",\n'
+        s += '  "mqtt_password": "' + CONFIG["mqtt_password"] + '"\n'
+        s += '}'
+        return s
+
     def find_devices(self):
         try:
             _LOGGER.info("Starting search for Airthings sensors...")
             num_devices_found = self.airthingsdetect.find_devices()
             _LOGGER.info("Found {} airthings device(s).".format(num_devices_found))
             if num_devices_found != 0:
-                # Display suggested config file entry
+                # Display suggested config file entry, depending on whether this is being run as an add-on or not.
                 print("")
                 print("\033[36m---------------------------------\033[0m")
-                print("If you are running this as an addon, below is the suggested yaml configuration to use:")
-                print(" ")
-                print("\033[32mdevices:")
-                for d in self.airthingsdetect.airthing_devices:
-                    print("  - mac: "+d)
-                    print("    name: Insert Device Name")
-                print("refresh_interval: 150")
-                print("retry_count: 10")
-                print("retry_wait: 3")
-                print("log_level: INFO")
-                print("mqtt_discovery: 'true'")
+                if CONFIG["addon"]:
+                    # Display add-on yaml config.
+                    print("Your suggested add-on yaml configuration is below:")
+                    print(" ")
+                    print("\033[32mdevices:")
+                    for d in self.airthingsdetect.airthing_devices:
+                        print("  - mac: "+d)
+                        print("    name: Insert Device Name")
+                    print("refresh_interval: 150")
+                    print("retry_count: 10")
+                    print("retry_wait: 3")
+                    print("log_level: INFO")
+                    print("mqtt_discovery: 'true'")
+                else:
+                    # Display suggested json configuration.
+                    print("Your suggested options.json configuration is below:")
+                    print(" ")
+                    
+                    # Generate the config file
+                    c = self.generate_config()
+
+                    # Output the config file to screen.
+                    print("\033[32m" + c)
+
+                    if CONFIG['generate_config']:
+                        # Output generated config to file.
+                        if os.path.exists(CONFIG['config']):
+                            # File already exists.
+                            _LOGGER.error("\033[31mConfiguration not written because " + CONFIG["config"] + " file already exists.")
+                        else:
+                            # File does not exist.
+                            try:
+                                with open(CONFIG['config'], "w") as f:
+                                    f.write(c)
+                                    f.close()
+                            except:
+                                # Exit if there is an error writing to the config file
+                                _LOGGER.exception("\033[31mError writing " + CONFIG["config"] + " file.\033[0m")
+                                sys.exit(1)
+                            print(" ")
+                            print("\033[31mConfiguration written to " + CONFIG["config"] + "\033[0m")
+
+                
                 print(" ")
                 print("\033[96m---------------------------------\033[0m")
-                
-                # Display suggested json configuration.
-                print("If you are not running this as an addon, below is the suggested json configuration to include in your options.json file:")
-                print(" ")
-                print("\033[32m{")
-                print('  "devices" : [')
-                print("    {")
-                for d in self.airthingsdetect.airthing_devices:
-                    print('      "mac": "'+d+'",')
-                    print('      "name": "Insert Device Name"')
-                print('    }')
-                print('  ],')
-                print('  "refresh_interval": 150,')
-                print('  "retry_count": 10,')
-                print('  "retry_wait": 3,')
-                print('  "log_level": "INFO",')
-                print('  "mqtt_discovery": true,')
-                print('  "mqtt_retain": false,')
-                print('  "mqtt_host": "hass",')
-                print('  "mqtt_username": "airthings",')
-                print('  "mqtt_password": "secret"')
-                print("}")
-                print(" ")
                 sys.exit(0)
 
-                # # Put found devices into DEVICES variable
-                # for d in self.airthingsdetect.airthing_devices:
-                #     DEVICES[d] = {}
             else:
                 # Exit if no devices found
                 _LOGGER.warning("\033[31mNo airthings devices found. If the watchdog option is enabled, this addon will restart and try again.\033[0m")
@@ -212,34 +235,62 @@ if __name__ == "__main__":
     _LOGGER.setLevel(logging.INFO)
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Note that any values in your config file will override values provided as command arguments.')
-    parser.add_argument('--mqtt-host', type=str, default='localhost', help='mqtt server host name or ip address (default is localhost)')
-    parser.add_argument('--mqtt-port', type=int, default=1883, help='mqtt server host port (default is 1883)')
-    parser.add_argument('--mqtt-username', type=str, default='', help='mqtt server username (default is blank)')
-    parser.add_argument('--mqtt-password', type=str, default='', help='mqtt server password (default is blank)')
-    parser.add_argument('--mqtt-retain', type=str, default='False', choices=['True', 'False'], help='mqtt server password (default is False)')
-    parser.add_argument('--config', type=str, default='./options.json', help='location of options.json file (default is ./options.json)')
+    # %%% Check to see if all of these options are still being used.
+    parser = argparse.ArgumentParser(
+            description='Note that any values in your config file will override values provided as command arguments.',
+            epilog="If you are running this script for the first time, use the --generate_config option to output to file a suggested config file that you can then edit.")
+    parser.add_argument('--refresh_interval', type=int, default=150, help='how many seconds to wait before next refresh of the sensor data (default is "150")')
+    parser.add_argument('--retry_count', type=int, default=10, help='number of times to retry accessing your Airthings devices when there is a bluetooth error or other issue before exiting (default is "10")')
+    parser.add_argument('--retry_wait', type=int, default=3, help='how many seconds to wait between the retries set out in retry-count (default is "3")')
+    parser.add_argument('--log_level', type=str, default="INFO", choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO','DEBUG'], help='verbosity of log output (default is "INFO")')
+    parser.add_argument('--mqtt_host', type=str, default='hass', help='mqtt server host name or ip address (default is "hass")')
+    parser.add_argument('--mqtt_port', type=int, default=1883, help='mqtt server host port (default is 1883)')
+    parser.add_argument('--mqtt_username', type=str, default='airthings', help='mqtt server username (default is "airthings")')
+    parser.add_argument('--mqtt_password', type=str, default='secret', help='mqtt server password (default is "secret")')
+    parser.add_argument('--mqtt_discovery', type=str, default='True', choices=['True', 'False'], help='controls whether the Home Assistant\'s MQTT Discovery feature is enabled or disabled (default is True)')
+    parser.add_argument('--mqtt_retain', type=str, default='False', choices=['True', 'False'], help='controls whether the "retain" flag is set for sensor values sent to the MQTT broker (default is False)')
+    parser.add_argument('--addon', action='store_true', help='flag used internally if script is being run as an add-on (default is False)')
+    parser.add_argument('--config', type=str, default='./options.json', help='location of config file (default is ./options.json)')
+    parser.add_argument('--generate_config', action='store_true', help='output to file a suggested config file (default is ./options.json)')
     args = parser.parse_args()
-    
+
     # Fill in the config values from the command line arguments provided
+    CONFIG["refresh_interval"] = args.refresh_interval
+    CONFIG["retry_count"] = args.retry_count
+    CONFIG["retry_wait"] = args.retry_wait
+    CONFIG["log_level"] = args.log_level
     CONFIG["mqtt_host"] = args.mqtt_host
     CONFIG["mqtt_port"] = args.mqtt_port
     CONFIG["mqtt_username"] = args.mqtt_username
     CONFIG["mqtt_password"] = args.mqtt_password
+    CONFIG["mqtt_discovery"] = args.mqtt_discovery == True
     CONFIG["mqtt_retain"] = args.mqtt_retain == True
+    CONFIG["addon"] = args.addon
+    CONFIG["config"] = args.config
+    CONFIG["generate_config"] = args.generate_config
 
-    # Load configuration from file, which will override any command line arguments (as noted above)
-    try:
-        with open(vars(args)['config']) as f:
-            #CONFIG = json.load(f)
-            CONFIG.update(json.load(f))
-    except:
-        # Exit if there is an error reading config file
-        _LOGGER.exception("\033[31mError reading options.json file. If you are running this as a Home Assistant addon and the watchdog option is enabled, this addon will restart and try again.\033[0m")
-        sys.exit(1)
+    if CONFIG["generate_config"]:
+        if os.path.exists(CONFIG['config']):
+            # File already exists.
+            _LOGGER.error("\033[31mConfiguration not written because " + CONFIG["config"] + " file already exists. You can specify a different output file using the --config option.")
+            sys.exit(0)
+    else:
+        # Load configuration from file, which will override any command line arguments (as noted above)
+        try:
+            with open(CONFIG["config"]) as f:
+                #CONFIG = json.load(f)
+                CONFIG.update(json.load(f))
+        except:
+            if CONFIG["addon"]:
+                # Exit if there is an error reading config file
+                _LOGGER.exception("\033[31mError reading " + CONFIG["config"] + " file. If the watchdog option is enabled, this addon will restart and try again.\033[0m")
+                sys.exit(1)
+            else:
+                # Show a warning if there is an error reading the file.
+                _LOGGER.warning("\033[31mError reading " + CONFIG["config"] + " file. This script will search for devices and output a suggested configuration file.\033[0m")
       
     # Set logging level (defaults to INFO)
-    if CONFIG["log_level"] in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
+    if ("log_level" in CONFIG) and (CONFIG["log_level"] in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]):
         _LOGGER.setLevel(CONFIG["log_level"])
 
     # Pull out devices configured and insert them if a valid mac address has been provided
