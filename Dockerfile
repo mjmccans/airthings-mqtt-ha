@@ -1,5 +1,5 @@
 # set base image (host OS) as stage1
-FROM python:3.9 as stage1
+FROM python:3.9-buster as stage1
 
 # copy the dependencies file to the working directory
 COPY requirements.txt .
@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-warn-script-location --user -r requirements.txt
 
 # second unnamed stage
-FROM python:3.9-slim
+FROM python:3.9-slim-buster
 
 # Install bluetooth packages
 RUN apt-get update && apt-get install -y bluez

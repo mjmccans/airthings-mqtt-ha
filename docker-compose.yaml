@@ -20,4 +20,4 @@ services:
     restart: unless-stopped
 
     volumes:
-      - ./src/config.toml:/code/config.toml # Location of config.toml file
+      - ./src/options.json:/code/options.json # Location of options.json file
