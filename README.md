@@ -90,6 +90,7 @@ The `devices` option sets out your Airthings devices. For each device you set ou
       "mac": "8H:93:D8:8B:12:8F",
       "name": "Living Room"
     }
+  ],
 ```
 
 ### Option: `refresh_interval`
