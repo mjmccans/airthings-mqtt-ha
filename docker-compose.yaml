@@ -13,7 +13,7 @@ services:
     privileged: true
     
     network_mode: host # This is required for bluetooth to work in the container
-    
+       
     tty: true
     stdin_open: true
 
@@ -21,3 +21,4 @@ services:
 
     volumes:
       - ./src/options.json:/code/options.json # Location of options.json file
+      - /var/run/dbus:/var/run/dbus:z         # Connect to the host dbus

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Copyright (c) 2021 Mark McCans
+# Copyright (c) 2022 Mark McCans
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,8 +19,16 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# NOTES:
+#
+# To allow scanning: 
+#  sudo usermod -a -G bluetooth <your-username> ; sudo systemctl restart dbus
+#
+# To fix connection issues:
+#   bluetoothctl -- remove 58:93:D8:8B:12:7C
 
-import logging, time, json, sys, os, argparse, re
+import logging, time, json, sys, os, argparse, re, asyncio
 import paho.mqtt.publish as publish
 from paho.mqtt import MQTTException
 from airthings import AirthingsWaveDetect
@@ -57,15 +65,7 @@ class ATSensors:
         else:
             _LOGGER.info("No devices provided, so searching for Airthings sensors...")
             self.find_devices()
-        
-        # Get info about the devices
-        if not self.get_device_info():
-            # Exit if setup fails
-            _LOGGER.error("\033[31mFailed to set up Airthings sensors. If the watchdog option is enabled, this addon will restart and try again.\033[0m")
-            sys.exit(1)
-
-        _LOGGER.info("Done Airthings setup.")
-
+    
     def generate_config(self):    
         s = '{\n' + '  "devices" : [\n' + '    {\n'
         for d in self.airthingsdetect.airthing_devices:
@@ -83,10 +83,10 @@ class ATSensors:
         s += '}'
         return s
 
-    def find_devices(self):
+    async def find_devices(self):
         try:
             _LOGGER.info("Starting search for Airthings sensors...")
-            num_devices_found = self.airthingsdetect.find_devices()
+            num_devices_found = await self.airthingsdetect.find_devices()
             _LOGGER.info("Found {} airthings device(s).".format(num_devices_found))
             if num_devices_found != 0:
                 # Display suggested config file entry, depending on whether this is being run as an add-on or not.
@@ -149,11 +149,11 @@ class ATSensors:
             _LOGGER.exception("\033[31mFailed while searching for devices. Is a bluetooth adapter available? If the watchdog option is enabled, this addon will restart and try again.\033[0m")
             sys.exit(1)
 
-    def get_device_info(self):
+    async def get_device_info(self):
         _LOGGER.debug("Getting info about device(s)...")
         for attempt in range(CONFIG["retry_count"]):
             try:
-                devices_info = self.airthingsdetect.get_info()
+                devices_info = await self.airthingsdetect.get_info()
             except:
                 _LOGGER.warning("Unexpected exception while getting device information on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
                 time.sleep(CONFIG["retry_wait"])
@@ -172,11 +172,12 @@ class ATSensors:
             DEVICES[mac]["serial_nr"] = dev.serial_nr
             DEVICES[mac]["model_nr"] = dev.model_nr
             DEVICES[mac]["device_name"] = dev.device_name
+            DEVICES[mac]["firmware_rev"] = dev.firmware_rev
 
         _LOGGER.debug("Getting sensors...")
         for attempt in range(CONFIG["retry_count"]):
             try:
-                devices_sensors = self.airthingsdetect.get_sensors()
+                devices_sensors = await self.airthingsdetect.get_sensors()
             except:
                 _LOGGER.warning("Unexpected exception while getting sensors information on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
                 time.sleep(CONFIG["retry_wait"])
@@ -196,14 +197,14 @@ class ATSensors:
         
         return True
     
-    def get_sensor_data(self):
+    async def get_sensor_data(self):
         _LOGGER.debug("Getting sensor data...")
         for attempt in range(CONFIG["retry_count"]):
             try:
-                sensordata = self.airthingsdetect.get_sensor_data()
+                sensordata = await self.airthingsdetect.get_sensor_data()
                 return sensordata
             except:
-                _LOGGER.warning("Unexpected exception while getting sensor data on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
+                _LOGGER.exception("Unexpected exception while getting sensor data on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
                 time.sleep(CONFIG["retry_wait"])
             else:
                 # Success!
@@ -230,7 +231,7 @@ def mqtt_publish(msgs):
     except:
         _LOGGER.exception("Unexpected exception while sending messages to mqtt broker.")
 
-if __name__ == "__main__":
+async def main():
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='[%Y-%m-%d %H:%M:%S]')
     _LOGGER.setLevel(logging.INFO)
 
@@ -305,12 +306,16 @@ if __name__ == "__main__":
                     _LOGGER.warning("Invalid mac address provided: {}".format(d["mac"]))
 
     a = ATSensors(180, DEVICES)
+    if not await a.get_device_info():
+        # Exit if get_device_info fails.
+        _LOGGER.error("\033[31mFailed to set up Airthings sensors. If the watchdog option is enabled, this addon will restart and try again.\033[0m")
+        sys.exit(1)
 
     # Update sensor values in accordance with the REFRESH_INTERVAL set.
     first = True
     while True:
         # Get sensor data
-        sensors = a.get_sensor_data()
+        sensors = await a.get_sensor_data()
         # Only connect to mqtt broker if we have data
         if sensors is not None and sensors != {}:
             # Variable to store mqtt messages
@@ -330,6 +335,7 @@ if __name__ == "__main__":
                     if "manufacturer" in DEVICES[mac]: device["manufacturer"] = DEVICES[mac]["manufacturer"]
                     if "device_name" in DEVICES[mac]: device["name"] = DEVICES[mac]["device_name"]
                     if "model_nr" in DEVICES[mac]: device["model"] = DEVICES[mac]["model_nr"]
+                    if "firmware_rev" in DEVICES[mac]: device["sw_version"] = DEVICES[mac]["firmware_rev"]
 
                     for name, val in data.items():
                         if name != "date_time":                         
@@ -391,3 +397,6 @@ if __name__ == "__main__":
         # Wait for next refresh cycle
         _LOGGER.info("Waiting {} seconds.".format(CONFIG["refresh_interval"]))
         time.sleep(CONFIG["refresh_interval"])
+
+if __name__ == "__main__":
+    asyncio.run(main())
