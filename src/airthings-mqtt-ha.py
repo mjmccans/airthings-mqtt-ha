@@ -62,9 +62,6 @@ class ATSensors:
         # Note: Doing this so multiple mac addresses can be sent in instead of just one.
         if devices is not None and devices != {}:
             self.airthingsdetect.airthing_devices = list(devices)
-        else:
-            _LOGGER.info("No devices provided, so searching for Airthings sensors...")
-            self.find_devices()
     
     def generate_config(self):    
         s = '{\n' + '  "devices" : [\n' + '    {\n'
@@ -306,6 +303,10 @@ async def main():
                     _LOGGER.warning("Invalid mac address provided: {}".format(d["mac"]))
 
     a = ATSensors(180, DEVICES)
+    if DEVICES is None or DEVICES == {}:
+        _LOGGER.info("No devices provided, so searching for Airthings sensors...")
+        await a.find_devices()
+
     if not await a.get_device_info():
         # Exit if get_device_info fails.
         _LOGGER.error("\033[31mFailed to set up Airthings sensors. If the watchdog option is enabled, this addon will restart and try again.\033[0m")
