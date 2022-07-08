@@ -28,12 +28,13 @@
 # To fix connection issues:
 #   bluetoothctl -- remove 58:93:D8:8B:12:7C
 
-import logging, time, json, sys, os, argparse, re, asyncio
+import logging, json, sys, os, argparse, re, asyncio
 import paho.mqtt.publish as publish
 from paho.mqtt import MQTTException
 from airthings import AirthingsWaveDetect
 
-_LOGGER = logging.getLogger("airthings-mqtt-ha")
+# _LOGGER = logging.getLogger("airthings-mqtt-ha")
+_LOGGER = logging.getLogger(__name__)
 
 CONFIG = {}     # Variable to store configuration
 DEVICES = {}    # Variable to store devices
@@ -153,7 +154,7 @@ class ATSensors:
                 devices_info = await self.airthingsdetect.get_info()
             except:
                 _LOGGER.warning("Unexpected exception while getting device information on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
-                time.sleep(CONFIG["retry_wait"])
+                await asyncio.sleep(CONFIG["retry_wait"])
             else:
                 # Success!
                 break
@@ -177,7 +178,7 @@ class ATSensors:
                 devices_sensors = await self.airthingsdetect.get_sensors()
             except:
                 _LOGGER.warning("Unexpected exception while getting sensors information on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
-                time.sleep(CONFIG["retry_wait"])
+                await asyncio.sleep(CONFIG["retry_wait"])
             else:
                 # Success!
                 break
@@ -202,7 +203,7 @@ class ATSensors:
                 return sensordata
             except:
                 _LOGGER.exception("Unexpected exception while getting sensor data on attempt {}. Retrying in {} seconds.".format(attempt+1, CONFIG["retry_wait"]))
-                time.sleep(CONFIG["retry_wait"])
+                await asyncio.sleep(CONFIG["retry_wait"])
             else:
                 # Success!
                 break
@@ -362,7 +363,7 @@ async def main():
                 mqtt_publish(msgs)
                 _LOGGER.info("Done sending HA mqtt discovery configuration messages.")
                 msgs = []
-                time.sleep(5)
+                await asyncio.sleep(5)
             
             # Collect all of the sensor data
             _LOGGER.info("Collecting sensor value messages...")
@@ -397,7 +398,7 @@ async def main():
 
         # Wait for next refresh cycle
         _LOGGER.info("Waiting {} seconds.".format(CONFIG["refresh_interval"]))
-        time.sleep(CONFIG["refresh_interval"])
+        await asyncio.sleep(CONFIG["refresh_interval"])
 
 if __name__ == "__main__":
     asyncio.run(main())

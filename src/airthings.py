@@ -2,7 +2,9 @@
 # and is the great work of that team and not mine. The original file does not contain a license or
 # copyright notice but it is added below.
 #
-# I have also suppressed a print message to clean up the output.
+# Changes made:
+#   1. Converted from the bluepy library to bleak library for bluetooth access
+#   2. Suppressed a print message to clean up the output.
 #
 # Copyright (c) 2021 Martin Tremblay
 #
@@ -31,7 +33,6 @@ from collections import namedtuple
 import logging
 from datetime import datetime
 
-# import bluepy.btle as btle
 from bleak import BleakClient
 from bleak import BleakScanner
 from bleak.uuids import uuid16_dict
@@ -223,7 +224,6 @@ command_decoders = {str(COMMAND_UUID):CommandDecode(name="Battery", format_type=
 
 class AirthingsWaveDetect:
     def __init__(self, scan_interval, mac=None):
-        _LOGGER.setLevel(logging.DEBUG) # Todo: Remove this. It is only here because of issue with logging level.
         self.airthing_devices = [] if mac is None else [mac]
         self.sensors = []
         self.sensordata = {}
@@ -286,7 +286,6 @@ class AirthingsWaveDetect:
 
     async def get_info(self):
         # Try to get some info from the discovered airthings devices
-        _LOGGER.error("get_info: start")
         self.devices = {}
         for mac in self.airthing_devices:
             await self.connect(mac)
