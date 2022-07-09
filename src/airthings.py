@@ -35,15 +35,13 @@ from datetime import datetime
 
 from bleak import BleakClient
 from bleak import BleakScanner
-from bleak.uuids import uuid16_dict
 import asyncio
 
 from uuid import UUID
 
 _LOGGER = logging.getLogger(__name__)
 
-# Use full UUID since we do not use UUID from bluepy.btle
-CHAR_UUID_CCCD   = uuid16_dict.get('2902') # Client Characteristic Configuration Descriptor (CCCD)
+# Use full UUID since we do not use UUID from bluetooth library
 CHAR_UUID_MANUFACTURER_NAME = UUID('00002a29-0000-1000-8000-00805f9b34fb')
 CHAR_UUID_SERIAL_NUMBER_STRING = UUID('00002a25-0000-1000-8000-00805f9b34fb')
 CHAR_UUID_MODEL_NUMBER_STRING = UUID('00002a24-0000-1000-8000-00805f9b34fb')
@@ -195,20 +193,6 @@ class CommandDecode:
 
         return res
 
-
-# class MyDelegate(btle.DefaultDelegate):
-#     def __init__(self):
-#         btle.DefaultDelegate.__init__(self)
-#         # ... initialise here
-#         self.data = None
-
-#     def handleNotification(self, cHandle, data):
-#         if self.data is None:
-#             self.data = data
-#         else:
-#             self.data = self.data + data
-
-
 sensor_decoders = {str(CHAR_UUID_WAVE_PLUS_DATA):WavePlussDecode(name="Pluss", format_type='BBBBHHHHHHHH', scale=0),
                    str(CHAR_UUID_DATETIME):WaveDecodeDate(name="date_time", format_type='HBBBBB', scale=0),
                    str(CHAR_UUID_HUMIDITY):BaseDecode(name="humidity", format_type='H', scale=1.0/100.0),
@@ -230,6 +214,7 @@ class AirthingsWaveDetect:
         self.scan_interval = scan_interval
         self.last_scan = -1
         self._dev = None
+        self._command_data = None
 
     # def _parse_serial_number(self, manufacturer_data):
     #     try:
@@ -243,6 +228,10 @@ class AirthingsWaveDetect:
     #             print(SN)
     #             return SN
 
+    def notification_handler(self, sender, data):
+        _LOGGER.debug("Notification handler: {0}: {1}".format(sender, data))
+        self._command_data = data
+    
     async def find_devices(self, scans=2, timeout=5):
         # Search for devices, scan for BLE devices scans times for timeout seconds
         # Get manufacturer data and try to match it to airthings ID.
@@ -269,8 +258,6 @@ class AirthingsWaveDetect:
                 ret = await self._dev.connect()
                 if ret:
                     _LOGGER.debug("Connected to {}".format(mac))
-                # self.delgate = MyDelegate()
-                # self._dev.withDelegate( self.delgate )
                 break
             except Exception as e:
                 if tries == retries:
@@ -303,26 +290,9 @@ class AirthingsWaveDetect:
                     self.devices[mac] = device    
                 except:
                     _LOGGER.exception("Error getting device info.")
-
                 await self.disconnect()
-
             else:
                 _LOGGER.error("Not getting device info because failed to connect to device.")
-            
-            # self.connect(mac)
-            # if self._dev is not None:
-            #     device = AirthingsDeviceInfo(serial_nr=mac)
-            #     for characteristic in device_info_characteristics:
-            #         try:
-            #             char = self._dev.getCharacteristics(uuid=characteristic.uuid)[0]
-            #             data = char.read()
-            #             setattr(device, characteristic.name, data.decode(characteristic.format))
-            #         except btle.BTLEDisconnectError:
-            #             _LOGGER.exception("Disconnected")
-            #             self._dev = None
-
-            #     self.devices[mac] = device
-            # self.disconnect()
         return self.devices
 
     async def get_sensors(self):
@@ -334,25 +304,11 @@ class AirthingsWaveDetect:
                 svcs = await self._dev.get_services()
                 for service in svcs:
                     for characteristic in service.characteristics:
+                        _LOGGER.debug(characteristic)
                         if characteristic.uuid in sensors_characteristics_uuid_str:
                             sensor_characteristics.append(characteristic)
                 self.sensors[mac] = sensor_characteristics
-            await self.disconnect()
-                            
-            # self.connect(mac)
-            # if self._dev is not None:
-            #     try:
-            #         characteristics = self._dev.getCharacteristics()
-            #         sensor_characteristics =  []
-            #         for characteristic in characteristics:
-            #             _LOGGER.debug(characteristic)
-            #             if characteristic.uuid in sensors_characteristics_uuid_str:
-            #                 sensor_characteristics.append(characteristic)
-            #         self.sensors[mac] = sensor_characteristics
-            #     except btle.BTLEDisconnectError:
-            #             _LOGGER.exception("Disconnected")
-            #             self._dev = None
-            # self.disconnect()
+            await self.disconnect()                            
         return self.sensors
 
     async def get_sensor_data(self):
@@ -369,29 +325,31 @@ class AirthingsWaveDetect:
                                 sensor_data = sensor_decoders[str(characteristic.uuid)].decode_data(data)
                                 _LOGGER.debug("{} Got sensordata {}".format(mac, sensor_data))
                             
-                            # ToDo: Figure out commands below
+                            # ToDo: Is there a more elegant way to handle the below?
 
-                            # if str(characteristic.uuid) in command_decoders:
-                            #     self.delgate.data = None # Clear the delegate so it is ready for new data.
-                            #     char = self._dev.getCharacteristics(uuid=characteristic.uuid)[0]
-                            #     # Do these steps to get notification to work, I do not know how it works, this link should explain it
-                            #     # https://devzone.nordicsemi.com/guides/short-range-guides/b/bluetooth-low-energy/posts/ble-characteristics-a-beginners-tutorial
-                            #     desc, = char.getDescriptors(forUUID=CHAR_UUID_CCCD)
-                            #     desc.write(struct.pack('<H', 1), True)
-                            #     char.write(command_decoders[str(characteristic.uuid)].cmd)
-                            #     for i in range(3):
-                            #         if self._dev.waitForNotifications(0.1):
-                            #             _LOGGER.debug("Received notification, total data received len {}".format(len(self.delgate.data)))
-                                
-                            #     sensor_data = command_decoders[str(characteristic.uuid)].decode_data(self.delgate.data)
-                            #     _LOGGER.debug("{} Got cmddata {}".format(mac, sensor_data))
+                            if str(characteristic.uuid) in command_decoders:
+                                _LOGGER.debug("command characteristic: {}".format(characteristic.uuid))
+                                # Set up the notification handlers
+                                await self._dev.start_notify(characteristic.uuid, self.notification_handler)
+                                # send command to this 'indicate' characteristic
+                                await self._dev.write_gatt_char(characteristic.uuid, command_decoders[str(characteristic.uuid)].cmd)
+                                # Wait for up to one second to see if a callblack comes in.
+                                for i in range(10):
+                                    await asyncio.sleep(0.1)
+                                    # Check if there is data
+                                    _LOGGER.debug("waiting for callback: {}".format(i))
+                                    if self._command_data != None:
+                                        sensor_data = command_decoders[str(characteristic.uuid)].decode_data(self._command_data)
+                                        self._command_data = None
+                                        break
+                                # Stop notification handler
+                                await self._dev.stop_notify(characteristic.uuid)
 
                             if sensor_data is not None:
                                 if self.sensordata.get(mac) is None:
                                     self.sensordata[mac] = sensor_data
                                 else:
-                                    self.sensordata[mac].update(sensor_data)
-                                    
+                                    self.sensordata[mac].update(sensor_data)                
                     except:
                         _LOGGER.exception("Error getting sensor data.")
                         self._dev = None
@@ -399,7 +357,6 @@ class AirthingsWaveDetect:
                 await self.disconnect()
 
         return self.sensordata
-
 
 async def main():
     logging.basicConfig()

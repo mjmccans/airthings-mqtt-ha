@@ -33,7 +33,6 @@ import paho.mqtt.publish as publish
 from paho.mqtt import MQTTException
 from airthings import AirthingsWaveDetect
 
-# _LOGGER = logging.getLogger("airthings-mqtt-ha")
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG = {}     # Variable to store configuration
