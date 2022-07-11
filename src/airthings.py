@@ -216,18 +216,6 @@ class AirthingsWaveDetect:
         self._dev = None
         self._command_data = None
 
-    # def _parse_serial_number(self, manufacturer_data):
-    #     try:
-    #         (ID, SN, _) = struct.unpack("<HLH", manufacturer_data)
-    #     except Exception as e:  # Return None for non-Airthings devices
-    #         return None
-    #     else:  # Executes only if try-block succeeds
-    #         if ID == 0x0334:
-    #             print("------------------")
-    #             print(ID)
-    #             print(SN)
-    #             return SN
-
     def notification_handler(self, sender, data):
         _LOGGER.debug("Notification handler: {0}: {1}".format(sender, data))
         self._command_data = data
@@ -239,8 +227,8 @@ class AirthingsWaveDetect:
         _LOGGER.debug("Scanning for airthings devices")
         for _count in range(scans):
             advertisements = await BleakScanner.discover(timeout)
-            for adv in advertisements:
-                if adv.metadata["manufacturer_data"] == {820: b'\xd6+\xa5\xaeI\x00'}: # TODO: Not sure if this is the best way to identify Airthings devices
+            for adv in advertisements:                    
+                if 820 in adv.metadata["manufacturer_data"]: # TODO: Not sure if this is the best way to identify Airthings devices
                     if adv.address not in self.airthing_devices:
                         self.airthing_devices.append(adv.address)
 
