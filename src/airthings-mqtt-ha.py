@@ -229,8 +229,7 @@ def mqtt_publish(msgs):
         _LOGGER.exception("Unexpected exception while sending messages to mqtt broker.")
 
 async def main():
-    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='[%Y-%m-%d %H:%M:%S]')
-    _LOGGER.setLevel(logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='[%Y-%m-%d %H:%M:%S]', level=logging.INFO)
 
     # Parse command line arguments
     # %%% Check to see if all of these options are still being used.
@@ -290,6 +289,7 @@ async def main():
     # Set logging level (defaults to INFO)
     if ("log_level" in CONFIG) and (CONFIG["log_level"] in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]):
         _LOGGER.setLevel(CONFIG["log_level"])
+        logging.getLogger("airthings").setLevel(CONFIG["log_level"])
 
     # Pull out devices configured and insert them if a valid mac address has been provided
     if "devices" in CONFIG:
