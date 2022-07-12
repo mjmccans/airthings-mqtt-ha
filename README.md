@@ -29,11 +29,11 @@ The instructions below are for running this script on a RaspberryPi running Rasp
 ```
 sudo apt install python3-pip
 pip3 install --user paho-mqtt
-pip3 install --user bluepy
+pip3 install --user bleak
 ```
-* Run the following command to give permissions required for bluepy to interact with the bluetooth radio without being root:
+* Also make sure that your user is part of the bluetooth group to be able to interact with the bluetooth radio without being root:
 ``` 
-sudo setcap 'cap_net_raw,cap_net_admin+eip' `find ~/.local/lib/ | grep bluepy-helper | grep -v bluepy-helper.c`
+sudo usermod -a -G bluetooth <your-username> ; sudo systemctl restart dbus
 ```
 
 ## Automatic Configuration
@@ -162,6 +162,10 @@ sudo systemctl status airthings-mqtt-ha
 
 sudo service airthings-mqtt-ha status
 ```
+
+## Running in Docker
+
+You can use the ```Dockerfile``` and ```docker-compose.yaml``` in this repository to run this script in a container. Note that you need to mount ```/var/run/dbus``` into the container as a volume so the host debus system can be accessed.
 
 ## Current Limitations
 
