@@ -1,3 +1,11 @@
+## [1.2.0] - 2022-07-12
+### NEW
+* Firmware version displayed on device details page.
+
+### Fixes
+* Changed bluetooth library from bluepy to bleak, a more modern bluetooth library. This change has material
+benefits because bleak communicates with the bluetooth adapter via dbus and does not require additional permissions.
+
 ## [1.1.0] - 2022-05-05
 ### Breaking Changes
 * Configuration file format has been changed from `toml` to `json` for better consistency with the add-on version of this script.
