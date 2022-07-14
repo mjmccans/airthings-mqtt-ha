@@ -257,20 +257,16 @@ class AirthingsWaveDetect:
         self.devices = {}
         for mac in self.airthing_devices:
             await self.connect(mac)
-            if self._dev is not None and self._dev.is_connected:
-                try:   
-                    if self._dev is not None and self._dev.is_connected:
-                        device = AirthingsDeviceInfo(serial_nr=mac)
-                        for characteristic in device_info_characteristics:
-                            try:
-                                data = await self._dev.read_gatt_char(characteristic.uuid)
-                                setattr(device, characteristic.name, data.decode(characteristic.format))
-                            except:
-                                _LOGGER.exception("Error getting info")
-                                self._dev = None
-                    self.devices[mac] = device    
-                except:
-                    _LOGGER.exception("Error getting device info.")
+            if self._dev is not None and self._dev.is_connected:  
+                if self._dev is not None and self._dev.is_connected:
+                    device = AirthingsDeviceInfo(serial_nr=mac)
+                    for characteristic in device_info_characteristics:
+                        try:
+                            data = await self._dev.read_gatt_char(characteristic.uuid)
+                            setattr(device, characteristic.name, data.decode(characteristic.format))
+                        except:
+                            _LOGGER.warning("Error getting {}".format(characteristic.name))
+                self.devices[mac] = device    
                 await self.disconnect()
             else:
                 _LOGGER.error("Not getting device info because failed to connect to device.")
