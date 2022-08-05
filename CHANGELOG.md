@@ -1,10 +1,11 @@
 ## [1.2.0] - 2022-08-05
-### NEW
-* Firmware version displayed on device details page.
 
-### Fixes
+### BREAKING CHANGES
 * Changed bluetooth library from bluepy to bleak, a more modern bluetooth library. This change has material
 benefits because bleak communicates with the bluetooth adapter via dbus and does not require additional permissions.
+
+### NEW
+* Firmware version displayed on device details page.
 
 ## [1.1.0] - 2022-05-05
 ### Breaking Changes
