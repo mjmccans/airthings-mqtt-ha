@@ -1,4 +1,4 @@
-## [1.2.0] - 2022-07-12
+## [1.2.0] - 2022-08-05
 ### NEW
 * Firmware version displayed on device details page.
 
