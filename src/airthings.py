@@ -219,11 +219,12 @@ class AirthingsWaveDetect:
         
         _LOGGER.debug("Scanning for airthings devices")
         for _count in range(scans):
-            advertisements = await BleakScanner.discover(timeout)
-            for adv in advertisements:
-                if 820 in adv.metadata["manufacturer_data"]: # TODO: Not sure if this is the best way to identify Airthings devices
-                    if adv.address not in self.airthing_devices:
-                        self.airthing_devices.append(adv.address)
+            advertisements = await BleakScanner.discover(timeout, return_adv=True)
+            for device, adv_data in advertisements.values():
+            #for adv in advertisements:
+                if 820 in adv_data.manufacturer_data: # TODO: Not sure if this is the best way to>
+                    if device.address not in self.airthing_devices:
+                        self.airthing_devices.append(device.address)
 
         _LOGGER.debug("Found {} airthings devices".format(len(self.airthing_devices)))
         return len(self.airthing_devices)
